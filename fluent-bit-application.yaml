@@ -1,0 +1,24 @@
+# fluent-bit-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit
+  namespace: argocd
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/your-org/your-repo.git  # Git リポジトリ URL
+    targetRevision: main
+    path: fluent-bit  # Chart のパス
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging  # デプロイ先の namespace
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
