@@ -1,0 +1,13 @@
+# Helm
+charts/
+*.tgz
+Chart.lock
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.swp
+*.swo
+*~
