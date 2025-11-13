@@ -1,14 +1,44 @@
 #!/bin/bash
 # deploy_fluent-bit.sh
-
 set -e
 
+# 引数チェック
+if [ $# -eq 0 ]; then
+    echo "使用方法: $0 <cluster-name>"
+    echo "例: $0 development"
+    echo "    $0 production"
+    echo "    $0 sandbox"
+    exit 1
+fi
+
+CLUSTER_NAME=$1
+
+# クラスタ設定
+case $CLUSTER_NAME in
+    production)
+        export KUBECONFIG=/home/jaist-lab/.kube/config-production
+        ARGOCD_SERVER="172.16.100.101"
+        ;;
+    development)
+        export KUBECONFIG=/home/jaist-lab/.kube/config-development
+        ARGOCD_SERVER="172.16.100.121"
+        ;;
+    sandbox)
+        export KUBECONFIG=/home/jaist-lab/.kube/config-sandbox
+        ARGOCD_SERVER="172.16.100.131"
+        ;;
+    *)
+        echo "エラー: 未知のクラスタ名: $CLUSTER_NAME"
+        echo "使用可能なクラスタ: development, production, sandbox"
+        exit 1
+        ;;
+esac
+
 echo "=== Fluent Bit デプロイ ==="
+echo "対象クラスタ: $CLUSTER_NAME"
+echo "Kubeconfig: $KUBECONFIG"
+echo ""
 
-# 環境の選択
-
-echo "対象の環境設定:"
-echo $KUBECONFIG
 
 # logging namespace を作成
 echo "logging namespace を作成中..."
@@ -23,11 +53,26 @@ if argocd app get fluent-bit > /dev/null 2>&1; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Application を削除中..."
         argocd app delete fluent-bit --yes
-        sleep 5
+
+        # 削除が完了するまで待機
+        echo "削除完了を待機中..."
+        while true; do
+            if ! argocd app get fluent-bit > /dev/null 2>&1; then
+                break
+            fi
+            echo -n "."
+            sleep 2
+        done
+        echo ""
         echo "✓ 削除完了"
+
+        # 追加の待機時間
+        echo "安全のため追加で5秒待機..."
+        sleep 5
     else
         echo "既存の Application を使用します"
-        argocd app sync fluent-bit
+        echo "手動同期を実行..."
+        argocd app sync fluent-bit --retry-limit 3
         exit 0
     fi
 fi
@@ -51,11 +96,32 @@ else
     exit 1
 fi
 
-# 同期を実行
-echo "同期を開始..."
-argocd app sync fluent-bit
+# 自動同期が開始されるのを待つ
+echo "自動同期の開始を待機中..."
+sleep 5
 
-# 状態を確認
+# 同期状態を監視
+echo "同期状態を確認中..."
+for i in {1..30}; do
+    SYNC_STATUS=$(argocd app get fluent-bit -o json | jq -r '.status.sync.status' 2>/dev/null || echo "Unknown")
+    HEALTH_STATUS=$(argocd app get fluent-bit -o json | jq -r '.status.health.status' 2>/dev/null || echo "Unknown")
+
+    echo "同期状態: $SYNC_STATUS, ヘルス状態: $HEALTH_STATUS"
+
+    if [[ "$SYNC_STATUS" == "Synced" ]] && [[ "$HEALTH_STATUS" == "Healthy" ]]; then
+        echo "✓ デプロイ成功"
+        break
+    fi
+
+    if [ $i -eq 30 ]; then
+        echo "⚠ タイムアウト: 同期状態を確認してください"
+    fi
+
+    sleep 2
+done
+
+# 最終状態を確認
+echo ""
 echo "Application 状態:"
 argocd app get fluent-bit
 
