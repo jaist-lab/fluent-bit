@@ -5,6 +5,9 @@ set -e
 
 echo "=== Fluent Bit デプロイ ==="
 
+# 環境の選択
+k8s_env
+
 # logging namespace を作成
 echo "logging namespace を作成中..."
 kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
