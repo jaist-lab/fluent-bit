@@ -6,7 +6,9 @@ set -e
 echo "=== Fluent Bit デプロイ ==="
 
 # 環境の選択
-k8s_env
+
+echo "対象の環境設定:"
+echo $KUBECONFIG
 
 # logging namespace を作成
 echo "logging namespace を作成中..."
