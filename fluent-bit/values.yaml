@@ -1,4 +1,4 @@
-clusterName: "development"
+# Fluent Bit values.yaml
 
 config:
   service: |
