@@ -1,5 +1,4 @@
 # Fluent Bit values.yaml
-
 config:
   service: |
     [SERVICE]
