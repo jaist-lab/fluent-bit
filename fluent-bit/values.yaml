@@ -1,17 +1,22 @@
-# Fluent Bit values - Forward output to Fluentd
+# Fluent Bit Configuration for Forward Output
 
-# デフォルトの Elasticsearch output を無効化
+# Service configuration
+flush: 5
+logLevel: info
+metricsPort: 2020
+
+# Main configuration
 config:
   service: |
     [SERVICE]
         Daemon Off
-        Flush 5
-        Log_Level info
+        Flush {{ .Values.flush }}
+        Log_Level {{ .Values.logLevel }}
         Parsers_File /fluent-bit/etc/parsers.conf
         Parsers_File /fluent-bit/etc/conf/custom_parsers.conf
         HTTP_Server On
         HTTP_Listen 0.0.0.0
-        HTTP_Port 2020
+        HTTP_Port {{ .Values.metricsPort }}
         Health_Check On
 
   inputs: |
@@ -36,6 +41,7 @@ config:
         K8S-Logging.Parser On
         K8S-Logging.Exclude On
 
+  # ここで Elasticsearch の設定を Forward に上書き
   outputs: |
     [OUTPUT]
         Name forward
@@ -43,9 +49,7 @@ config:
         Host 172.16.100.200
         Port 24224
         Retry_Limit 5
-        workers 2
 
-  # カスタムパーサーは空でOK
   customParsers: |
     [PARSER]
         Name docker_no_time
@@ -54,6 +58,7 @@ config:
         Time_Key time
         Time_Format %Y-%m-%dT%H:%M:%S.%L
 
+# Resources
 resources:
   limits:
     cpu: 1000m
